@@ -1,0 +1,84 @@
+/*
+ * Landing page global styles.
+ *
+ * Utility-first is the mandate. This file only carries rules that cannot
+ * reduce to a single utility at the call site:
+ *
+ * Every brand value reaches CSS via theme() (rewritten at build time by
+ * @unocss/transformer-directives). Raw hex literals are forbidden outside
+ * data-URL payloads.
+ */
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  /* Background + default text on the root canvas, so the whole viewport is one
+     color. color-scheme: dark alone leaves the root transparent, which firefox/axe
+     read as white and which paints a different black wherever body stops short
+     (the empty header leaves the 404 main shorter than the viewport). Matches the
+     <meta theme-color> in base.astro. */
+  background: theme("colors.zinc.950");
+  color: theme("colors.zinc.50");
+}
+
+body {
+  font-family: var(--font-sans);
+  /* Repeated so axe resolves the contrast background at the content's nearest
+     ancestor, not only at the root. */
+  background: theme("colors.zinc.950");
+}
+
+/*
+ * Skip link: off-screen until focused, then pinned to the top-left so keyboard
+ * users can jump past the chrome to #main-content. A base-rule case (it has no
+ * call site to carry utilities and must reveal itself only on :focus).
+ */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 50;
+  padding: 0.5rem 1rem;
+  background: theme("colors.zinc.50");
+  color: theme("colors.zinc.950");
+  border-radius: 0 0 0.25rem;
+}
+
+.skip-link:focus {
+  left: 0;
+}
+
+/*
+ * Entrance fade. The base.astro IntersectionObserver adds .is-visible to any
+ * [data-fade-in] element; above-the-fold elements get it immediately on load.
+ * The <h1> never carries this attribute: it is the LCP element and must paint
+ * at full opacity. Only opacity/transform animate, so this adds no layout shift.
+ *
+ * Global attribute selectors are an allowed base-rule case (apps/landing/CLAUDE.md),
+ * and this is the single entrance mechanism, so the reduced-motion final-state
+ * override lives here rather than as a per-element motion-reduce utility.
+ */
+[data-fade-in] {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+[data-fade-in].is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-fade-in] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

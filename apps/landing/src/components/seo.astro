@@ -1,0 +1,53 @@
+---
+// Emits the full SEO surface a crawler reads: title, description, canonical,
+// Open Graph, Twitter card, and one JSON-LD graph. Favicon/manifest links stay
+// in base.astro so favicons.spec keeps seeing exactly one of each.
+//
+// Open Graph, Twitter, locale, and the default og:image are synthesized here
+// from the page props; the page only passes title/description/canonical/jsonLd.
+export interface Props {
+  title: string;
+  description: string;
+  canonical: string;
+  ogImage?: string;
+  jsonLd?: Record<string, unknown>;
+}
+
+const { title, description, canonical, ogImage, jsonLd } = Astro.props;
+
+const SITE_NAME = "Codethrough";
+const LOCALE = "en_US";
+// Absolute URL so crawlers fetch the right image regardless of their base.
+const imageUrl = new URL(ogImage ?? "/og/og.png", canonical).href;
+
+// JSON-LD is data, not executable JS, so it ships as a raw inline block. We
+// build the whole <script> as a string and emit it via <Fragment set:html> so
+// Astro does not try to bundle it (a typed <script> with attributes would warn)
+// and the inline-script pre-commit hook stays clean (it bans the inline script
+// directive, which this comment must not spell out verbatim).
+const jsonLdScript =
+  jsonLd === undefined
+    ? ""
+    : `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`;
+---
+
+<title>{title}</title>
+<meta name="description" content={description} />
+<link rel="canonical" href={canonical} />
+
+<meta property="og:type" content="website" />
+<meta property="og:url" content={canonical} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:site_name" content={SITE_NAME} />
+<meta property="og:locale" content={LOCALE} />
+<meta property="og:image" content={imageUrl} />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={imageUrl} />
+
+<Fragment set:html={jsonLdScript} />
