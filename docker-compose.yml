@@ -1,0 +1,25 @@
+# Codethrough Local Development Environment
+#
+# Services are gated behind profiles, so a bare `docker compose up` boots
+# nothing. Use `redeploy_local` (from `scripts/src/includes.sh`) to boot the
+# full stack, or pick a profile explicitly:
+#   docker compose --profile landing up -d --build --wait  # landing leg
+
+services:
+  landing:
+    build:
+      context: .
+      dockerfile: apps/landing/Dockerfile
+    image: ghcr.io/${CODETHROUGH_IMAGE_REPO:-codethrough/codethrough}/landing:${CODETHROUGH_IMAGE_TAG:-latest}
+    container_name: codethrough_landing
+    profiles: [landing]
+    ports:
+      - "4321:4321"
+    environment:
+      CODETHROUGH_ENV: local
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:4321/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      start_period: 5s
+      retries: 3

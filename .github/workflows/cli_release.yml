@@ -1,0 +1,73 @@
+name: CLI Release
+
+# Build the single, self-contained `codethrough` binary and publish it.
+# macOS (Apple Silicon) is the only supported target today.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build (${{ matrix.os_name }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os_name: macos-arm64
+            runner: macos-latest
+            artifact: codethrough-macos-arm64
+            outfile: dist/codethrough
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6  # v2.2.0
+        with:
+          bun-version: canary
+
+      - name: Install dependencies
+        shell: bash
+        run: bun install --frozen-lockfile
+
+      # `build:binary` emits the self-contained binary at apps/cli/dist/codethrough.
+      - name: Build binary
+        shell: bash
+        working-directory: apps/cli
+        run: |
+          bun install --frozen-lockfile
+          bun run build:binary
+
+      - name: Smoke (help + auth status)
+        shell: bash
+        working-directory: apps/cli
+        run: |
+          "${{ matrix.outfile }}" --help
+          "${{ matrix.outfile }}" auth status
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: ${{ matrix.artifact }}
+          path: apps/cli/${{ matrix.outfile }}
+          if-no-files-found: error
+          retention-days: 7
+
+      # On a `v*` tag, attach the binary to the matching GitHub Release.
+      # The job-level `contents: write` permission authorizes the upload.
+      - name: Attach binary to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65  # v2.6.2
+        with:
+          files: apps/cli/${{ matrix.outfile }}
+          fail_on_unmatched_files: true

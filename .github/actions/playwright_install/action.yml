@@ -1,0 +1,36 @@
+name: Playwright Install
+description: >-
+  Restore the Playwright browser cache, installing browsers + OS deps only on a
+  cache miss. Installs chromium, firefox, and webkit so the unified e2e job
+  covers every app (CLI needs chromium; landing needs all three).
+
+runs:
+  using: composite
+  steps:
+    # Browser binaries are pinned by Playwright's version in bun.lock and live
+    # in the shared `~/.cache/ms-playwright` tree, so one cache serves every
+    # workspace. Both apps pin the same @playwright/test version.
+    - name: Restore Playwright browser cache
+      id: cache
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-${{ runner.arch }}-playwright-v3-${{ hashFiles('bun.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ runner.arch }}-playwright-v3-
+
+    # OS deps live outside the cached `~/.cache/ms-playwright` tree, so the
+    # cache restore brings back browser binaries but not their shared libs
+    # (e.g. libwoff2dec for WebKit). Install OS deps every run; install
+    # browser binaries only on cache miss. Run from `apps/landing`, which
+    # pins Playwright and declares all three browsers.
+    - name: Install Playwright OS deps
+      shell: bash
+      working-directory: apps/landing
+      run: bunx playwright install-deps chromium firefox webkit
+
+    - name: Install Playwright browsers
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: apps/landing
+      run: bunx playwright install chromium firefox webkit

@@ -1,0 +1,63 @@
+---
+import Footer from "../components/footer.astro";
+import Header from "../components/header.astro";
+import Hero from "../components/hero.astro";
+import Base from "../layouts/base.astro";
+
+const title = "Codethrough: Turn PRs into narrated walkthroughs";
+const description =
+  "Codethrough turns every pull request into a narrated walkthrough, explaining the changes in the order they're best reviewed.";
+const canonical = "https://codethrough.dev/";
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://codethrough.dev/#organization",
+      name: "Codethrough",
+      url: "https://codethrough.dev/",
+      logo: {
+        "@type": "ImageObject",
+        url: "https://codethrough.dev/icon-512.png",
+        width: 512,
+        height: 512,
+      },
+      sameAs: [
+        "https://github.com/getcodethrough",
+        "https://x.com/getcodethrough",
+      ],
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://codethrough.dev/#website",
+      url: "https://codethrough.dev/",
+      name: "Codethrough",
+      description,
+      publisher: { "@id": "https://codethrough.dev/#organization" },
+      inLanguage: "en-US",
+    },
+  ],
+};
+---
+
+<Base
+  title={title}
+  description={description}
+  canonical={canonical}
+  jsonLd={jsonLd}
+>
+  <Header />
+  <main>
+    {
+      /* Wrapper div hosts the skip-link focus target: Astro's audit flags
+        `tabindex` on `<main>`, which is a canonical skip-link pattern but
+        outside the audit's whitelist of div/span. Moving the id+tabindex to
+        a `<div>` keeps the focus behavior and passes the rule. */
+    }
+    <div id="main-content" tabindex="-1">
+      <Hero />
+    </div>
+  </main>
+  <Footer />
+</Base>
