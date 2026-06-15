@@ -1,0 +1,182 @@
+name: PR
+
+on:
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    outputs:
+      # Per-surface filter outputs, passed as `with:` inputs to reusables.
+      ts: ${{ steps.filter.outputs.ts }}
+      landing: ${{ steps.filter.outputs.landing }}
+      docker: ${{ steps.filter.outputs.docker }}
+      actions: ${{ steps.filter.outputs.actions }}
+      workflows_lint: ${{ steps.filter.outputs.workflows_lint }}
+      workflows_type_check: ${{ steps.filter.outputs.workflows_type_check }}
+      workflows_unit_test: ${{ steps.filter.outputs.workflows_unit_test }}
+      workflows_security_audit: ${{ steps.filter.outputs.workflows_security_audit }}
+      workflows_lhci: ${{ steps.filter.outputs.workflows_lhci }}
+      workflows_docker_build: ${{ steps.filter.outputs.workflows_docker_build }}
+      workflows_e2e_test: ${{ steps.filter.outputs.workflows_e2e_test }}
+      shell: ${{ steps.filter.outputs.shell }}
+      markdown: ${{ steps.filter.outputs.markdown }}
+      astro: ${{ steps.filter.outputs.astro }}
+      lint_needed: ${{ steps.filter.outputs.ts == 'true' || steps.filter.outputs.shell == 'true' || steps.filter.outputs.markdown == 'true' || steps.filter.outputs.astro == 'true' || steps.filter.outputs.actions == 'true' || steps.filter.outputs.workflows_lint == 'true' }}
+      type_check_needed: ${{ steps.filter.outputs.ts == 'true' || steps.filter.outputs.actions == 'true' || steps.filter.outputs.workflows_type_check == 'true' }}
+      unit_test_needed: ${{ steps.filter.outputs.ts == 'true' || steps.filter.outputs.shell == 'true' || steps.filter.outputs.actions == 'true' || steps.filter.outputs.workflows_unit_test == 'true' }}
+      security_audit_needed: ${{ steps.filter.outputs.ts == 'true' || steps.filter.outputs.actions == 'true' || steps.filter.outputs.workflows_security_audit == 'true' }}
+      lhci_needed: ${{ steps.filter.outputs.landing == 'true' || steps.filter.outputs.actions == 'true' || steps.filter.outputs.workflows_lhci == 'true' }}
+      docker_build_needed: ${{ (steps.filter.outputs.ts == 'true' || steps.filter.outputs.docker == 'true' || steps.filter.outputs.actions == 'true' || steps.filter.outputs.workflows_docker_build == 'true') && github.event.pull_request.head.repo.full_name == github.repository }}
+      # One unified e2e runs every app via `turbo run test:e2e --affected`. Each
+      # app brings up its own stack (CLI's Bun server; landing's compose, built
+      # locally), so nothing is pulled from GHCR and it runs on forks too (no
+      # same-repo guard). `ts` already covers landing + cli + packages + root
+      # config; `docker` covers the compose file + Dockerfile landing builds.
+      e2e_needed: ${{ steps.filter.outputs.ts == 'true' || steps.filter.outputs.docker == 'true' || steps.filter.outputs.actions == 'true' || steps.filter.outputs.workflows_e2e_test == 'true' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Per-surface inclusions
+        id: filter
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d  # v4.0.1
+        with:
+          # dorny/paths-filter evaluates each list entry as an independent
+          # picomatch pattern and OR's the results, so a standalone negation
+          # like '!**/*.md' fires as a positive match on every non-`.md` file.
+          # Embed the negation as an extglob suffix on the parent path instead
+          # so it constrains that one pattern's filename match.
+          filters: |
+            ts:
+              - 'apps/landing/**/!(*.md|*.mdx)'
+              - 'apps/cli/**/!(*.md|*.mdx)'
+              - 'packages/**/!(*.md|*.mdx)'
+              - 'package.json'
+              - 'bun.lock'
+              - 'bunfig.toml'
+              - 'turbo.json'
+            landing:
+              - 'apps/landing/**/!(*.md|*.mdx)'
+            docker:
+              - 'docker-compose.yml'
+              - 'apps/*/Dockerfile'
+              - 'infra/docker/**/!(*.md|*.mdx)'
+            actions:
+              - '.github/actions/**/!(*.md|*.mdx)'
+            workflows_lint:
+              - '.github/workflows/lint.yml'
+            workflows_type_check:
+              - '.github/workflows/type_check.yml'
+            workflows_unit_test:
+              - '.github/workflows/unit_test.yml'
+            workflows_security_audit:
+              - '.github/workflows/security_audit.yml'
+            workflows_lhci:
+              - '.github/workflows/lhci.yml'
+            workflows_docker_build:
+              - '.github/workflows/docker_build.yml'
+            workflows_e2e_test:
+              - '.github/workflows/e2e_test.yml'
+            shell:
+              - '**/*.sh'
+              - 'scripts/**'
+            markdown:
+              - '**/*.md'
+              - '**/*.mdx'
+            astro:
+              - 'apps/landing/**/*.astro'
+
+  lint:
+    needs: prepare
+    if: needs.prepare.outputs.lint_needed == 'true'
+    uses: ./.github/workflows/lint.yml
+    with:
+      ts: ${{ needs.prepare.outputs.ts == 'true' || needs.prepare.outputs.actions == 'true' || needs.prepare.outputs.workflows_lint == 'true' }}
+      shell: ${{ needs.prepare.outputs.shell == 'true' || needs.prepare.outputs.actions == 'true' || needs.prepare.outputs.workflows_lint == 'true' }}
+      markdown: ${{ needs.prepare.outputs.markdown == 'true' || needs.prepare.outputs.actions == 'true' || needs.prepare.outputs.workflows_lint == 'true' }}
+      astro: ${{ needs.prepare.outputs.astro == 'true' || needs.prepare.outputs.actions == 'true' || needs.prepare.outputs.workflows_lint == 'true' }}
+    secrets: inherit
+
+  type_check:
+    needs: prepare
+    if: needs.prepare.outputs.type_check_needed == 'true'
+    uses: ./.github/workflows/type_check.yml
+    with:
+      ts: ${{ needs.prepare.outputs.ts == 'true' || needs.prepare.outputs.actions == 'true' || needs.prepare.outputs.workflows_type_check == 'true' }}
+    secrets: inherit
+
+  unit_test:
+    needs: prepare
+    if: needs.prepare.outputs.unit_test_needed == 'true'
+    uses: ./.github/workflows/unit_test.yml
+    with:
+      ts: ${{ needs.prepare.outputs.ts == 'true' || needs.prepare.outputs.actions == 'true' || needs.prepare.outputs.workflows_unit_test == 'true' }}
+      shell: ${{ needs.prepare.outputs.shell == 'true' || needs.prepare.outputs.actions == 'true' || needs.prepare.outputs.workflows_unit_test == 'true' }}
+    secrets: inherit
+
+  security_audit:
+    needs: prepare
+    if: needs.prepare.outputs.security_audit_needed == 'true'
+    uses: ./.github/workflows/security_audit.yml
+    with:
+      ts: ${{ needs.prepare.outputs.ts == 'true' || needs.prepare.outputs.actions == 'true' || needs.prepare.outputs.workflows_security_audit == 'true' }}
+    secrets: inherit
+
+  lhci:
+    needs: prepare
+    if: needs.prepare.outputs.lhci_needed == 'true'
+    uses: ./.github/workflows/lhci.yml
+    secrets: inherit
+
+  # Same-repo only: forks cannot write to GHCR via `secrets.GITHUB_TOKEN`.
+  docker_build:
+    needs: [ prepare, lint, type_check, unit_test, security_audit ]
+    if: needs.prepare.outputs.docker_build_needed == 'true'
+    # Job-level permissions override the workflow-level ceiling so the called
+    # reusable can declare `packages: write` without it being capped to `none`.
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/docker_build.yml
+    secrets: inherit
+
+  # One unified e2e over every app (`turbo run test:e2e --affected`). Each app
+  # brings up its own stack: the CLI's loopback Bun server and landing's compose
+  # (built locally in its webServer). Nothing is pulled from GHCR, so it does
+  # not depend on docker_build and runs on forks too.
+  e2e_test:
+    needs: prepare
+    if: needs.prepare.outputs.e2e_needed == 'true'
+    uses: ./.github/workflows/e2e_test.yml
+    secrets: inherit
+
+  required:
+    name: Required
+    needs: [ prepare, lint, type_check, unit_test, security_audit, lhci, docker_build, e2e_test ]
+    if: always()
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    steps:
+      - name: Fail if conditional jobs failed
+        if: |
+          needs.prepare.result != 'success' ||
+          (needs.prepare.outputs.lint_needed == 'true' && needs.lint.result != 'success') ||
+          (needs.prepare.outputs.type_check_needed == 'true' && needs.type_check.result != 'success') ||
+          (needs.prepare.outputs.unit_test_needed == 'true' && needs.unit_test.result != 'success') ||
+          (needs.prepare.outputs.security_audit_needed == 'true' && needs.security_audit.result != 'success') ||
+          (needs.prepare.outputs.lhci_needed == 'true' && needs.lhci.result != 'success') ||
+          (needs.prepare.outputs.docker_build_needed == 'true' && needs.docker_build.result != 'success') ||
+          (needs.prepare.outputs.e2e_needed == 'true' && needs.e2e_test.result != 'success')
+        run: exit 1

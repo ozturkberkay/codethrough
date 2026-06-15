@@ -1,0 +1,27 @@
+version: 2
+updates:
+    - package-ecosystem: github-actions
+      directory: /
+      schedule: { interval: weekly }
+      groups:
+          workflow-actions:
+              patterns: ["*"]
+    - package-ecosystem: github-actions
+      directories:
+          - /.github/actions/*
+      schedule: { interval: weekly }
+      groups:
+          composite-action-internals:
+              patterns: ["*"]
+    - package-ecosystem: npm
+      directory: /
+      schedule: { interval: weekly }
+      groups:
+          js-dependencies:
+              patterns: ["*"]
+    - package-ecosystem: docker
+      directory: /apps/landing
+      schedule: { interval: weekly }
+      groups:
+          docker-images:
+              patterns: ["*"]

@@ -1,0 +1,13 @@
+{
+  "name": "@codethrough/tsconfig",
+  "version": "0.0.1",
+  "private": true,
+  "files": [
+    "base.json",
+    "astro.json"
+  ],
+  "exports": {
+    "./base": "./base.json",
+    "./astro": "./astro.json"
+  }
+}

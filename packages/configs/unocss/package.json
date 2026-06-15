@@ -1,0 +1,35 @@
+{
+  "name": "@codethrough/unocss-config",
+  "version": "0.0.1",
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsgo --noEmit -p tsconfig.json",
+    "lint": "oxlint --config ../../../.oxlintrc.json --deny-warnings --report-unused-disable-directives",
+    "format:check": "oxfmt --check --ignore-path ../../../.gitignore '**/*.{ts,tsx,js,mjs,cjs}'"
+  },
+  "dependencies": {
+    "@codethrough/design-tokens": "workspace:*"
+  },
+  "devDependencies": {
+    "@codethrough/tsconfig": "workspace:*",
+    "@typescript/native-preview": "7.0.0-dev.20260620.1",
+    "typescript": "5.9.2",
+    "unocss": "66.7.2"
+  },
+  "peerDependencies": {
+    "unocss": "^66.7.2"
+  }
+}

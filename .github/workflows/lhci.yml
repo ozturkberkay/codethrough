@@ -1,0 +1,50 @@
+name: LHCI
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lhci:
+    name: LHCI
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      # Astro shells out via Node and enforces Node >= 22.12.
+      # `ubuntu-24.04-arm` ships Node 20 by default.
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with:
+          node-version: '22'
+
+      - name: Install Bun & dependencies
+        uses: ./.github/actions/bun_install
+
+      # LHCI launches Chrome for the audit. `ubuntu-24.04-arm` ships neither
+      # Chrome nor Chromium (`browser-actions/setup-chrome` lacks arm64 support
+      # and `apt-get install chromium` is a snap stub on Noble), so we reuse
+      # Playwright's bundled Chrome for Testing, which has first-class arm64
+      # support and is the same browser cache `e2e_test.yml` installs.
+      - name: Install Playwright browsers
+        uses: ./.github/actions/playwright_install
+
+      # chrome-launcher (used by LHCI) honors `$CHROME_PATH` ahead of any
+      # auto-detection. Turbo's strict env mode requires this var to be
+      # declared on the `test:lhci` task in `turbo.json` for the script to
+      # see it.
+      - name: Resolve CHROME_PATH
+        working-directory: apps/landing
+        run: |
+          chrome_path="$(node -e 'console.log(require("@playwright/test").chromium.executablePath())')"
+          echo "CHROME_PATH=${chrome_path}" >> "${GITHUB_ENV}"
+
+      # Turbo's `test:lhci` task has `dependsOn: ["^build", "build"]`, so this
+      # one invocation builds the workspace deps + landing, then runs LHCI.
+      - name: Run Lighthouse CI
+        run: bun run turbo run test:lhci --filter=@codethrough/landing
