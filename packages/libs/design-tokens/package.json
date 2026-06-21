@@ -23,6 +23,6 @@
   "devDependencies": {
     "@codethrough/tsconfig": "workspace:*",
     "@typescript/native-preview": "7.0.0-dev.20260620.1",
-    "typescript": "5.9.2"
+    "typescript": "6.0.3"
   }
 }
